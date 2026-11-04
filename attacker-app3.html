@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실앱 오버레이 테스트</title>
+<style>
+  html, body { margin: 0; padding: 0; font-family: sans-serif; height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; background: #fff8e1; }
+  #wrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 2; }
+  #decoy { position: absolute; z-index: 1; background: linear-gradient(#ff7b7b, #e53935); color: #fff;
+    display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; border-radius: 10px; }
+  #zone { position: absolute; z-index: 3; border: 3px dashed #c62828; background: rgba(198,40,40,0.18);
+    display: none; touch-action: none; }
+  #zone .ztag { position: absolute; top: -24px; left: 0; background: #c62828; color: #fff; font-size: 12px; padding: 2px 6px; white-space: nowrap; }
+  #panel { flex: 0 0 auto; background: rgba(20,20,20,0.97); color: #fff;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); font-size: 14px; }
+  #panel .row { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #panel button { font-size: 14px; padding: 8px 10px; border: 0; border-radius: 6px; background: #37474f; color: #fff; cursor: pointer; }
+  #panel button.on { background: #2e7d32; }
+  #panel input[type=text] { flex: 1; min-width: 140px; font-size: 13px; padding: 7px; border-radius: 6px; border: 0; }
+  #panel input[type=range] { flex: 1; }
+  #coord { font-size: 13px; color: #ffcc80; }
+  #openBtn { position: fixed; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 11;
+    width: 46px; height: 46px; border-radius: 50%; border: 0; background: #263238; color: #fff; font-size: 20px; display: none; cursor: pointer; }
+  .lbl { font-size: 12px; color: #bbb; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="decoy">쿠폰 받기</div>
+  <iframe id="frame" src="https://app.modusign.co.kr/" title="app" scrolling="yes"></iframe>
+  <div id="zone"><div class="ztag">탭 영역 (드래그로 이동)</div></div>
+</div>
+
+<button id="openBtn" type="button">⚙</button>
+<div id="panel">
+  <div class="row">
+    <button type="button" id="mNav">1 탐색</button>
+    <button type="button" id="mAlign">2 정렬</button>
+    <button type="button" id="mAttack">3 실전</button>
+    <button type="button" id="hideBtn">패널 숨기기</button>
+  </div>
+  <div class="row">
+    <span class="lbl">iframe 투명도</span>
+    <input type="range" id="opRange" min="0" max="1" step="0.05" value="0.45">
+    <span id="coord">x=20 y=300 w=320 h=56</span>
+  </div>
+  <div class="row">
+    <span class="lbl">이동</span>
+    <button type="button" data-mv="0,-1">↑</button>
+    <button type="button" data-mv="0,1">↓</button>
+    <button type="button" data-mv="-1,0">←</button>
+    <button type="button" data-mv="1,0">→</button>
+    <span class="lbl">크기</span>
+    <button type="button" data-sz="1,0">너비+</button>
+    <button type="button" data-sz="-1,0">너비−</button>
+    <button type="button" data-sz="0,1">높이+</button>
+    <button type="button" data-sz="0,-1">높이−</button>
+    <button type="button" id="stepBtn">간격 10px</button>
+  </div>
+  <div class="row">
+    <input type="text" id="urlIn" placeholder="iframe으로 열 앱 주소 붙여넣기 (선택)">
+    <button type="button" id="goBtn">이동</button>
+  </div>
+  <div class="row lbl">탐색: 앱을 눌러 목표 버튼 화면까지 이동 → 정렬: 탭 영역을 실제 버튼에 겹치기 → 실전: 미끼만 보이는 상태에서 탭. 정렬 후에는 패널을 숨기지 마세요 (앱 높이가 바뀌어 위치가 어긋납니다).</div>
+</div>
+
+<script>
+(function () {
+  var frame = document.getElementById('frame');
+  var decoy = document.getElementById('decoy');
+  var zone = document.getElementById('zone');
+  var panel = document.getElementById('panel');
+  var openBtn = document.getElementById('openBtn');
+  var coord = document.getElementById('coord');
+  var opRange = document.getElementById('opRange');
+  var Z = { x: 20, y: 300, w: 320, h: 56 };
+  var step = 10, mode = 'nav';
+
+  function apply() {
+    Z.x = Math.round(Z.x); Z.y = Math.round(Z.y); Z.w = Math.round(Z.w); Z.h = Math.round(Z.h);
+    decoy.style.left = Z.x + 'px'; decoy.style.top = Z.y + 'px';
+    decoy.style.width = Z.w + 'px'; decoy.style.height = Z.h + 'px';
+    zone.style.left = Z.x + 'px'; zone.style.top = Z.y + 'px';
+    zone.style.width = Z.w + 'px'; zone.style.height = Z.h + 'px';
+    coord.textContent = 'x=' + Z.x + ' y=' + Z.y + ' w=' + Z.w + ' h=' + Z.h;
+  }
+  function setMode(m) {
+    mode = m;
+    ['mNav', 'mAlign', 'mAttack'].forEach(function (id) { document.getElementById(id).className = ''; });
+    if (m === 'nav') {
+      document.getElementById('mNav').className = 'on';
+      frame.style.opacity = 1; frame.style.pointerEvents = 'auto';
+      decoy.style.display = 'none'; zone.style.display = 'none';
+    } else if (m === 'align') {
+      document.getElementById('mAlign').className = 'on';
+      frame.style.opacity = opRange.value; frame.style.pointerEvents = 'none';
+      decoy.style.display = 'flex'; zone.style.display = 'block';
+    } else {
+      document.getElementById('mAttack').className = 'on';
+      frame.style.opacity = 0; frame.style.pointerEvents = 'auto';
+      decoy.style.display = 'flex'; zone.style.display = 'none';
+    }
+    apply();
+  }
+  document.getElementById('mNav').addEventListener('click', function () { setMode('nav'); });
+  document.getElementById('mAlign').addEventListener('click', function () { setMode('align'); });
+  document.getElementById('mAttack').addEventListener('click', function () { setMode('attack'); });
+  opRange.addEventListener('input', function () { if (mode === 'align') frame.style.opacity = opRange.value; });
+  document.getElementById('stepBtn').addEventListener('click', function () {
+    step = step === 10 ? 1 : 10; this.textContent = '간격 ' + step + 'px';
+  });
+  document.querySelectorAll('[data-mv]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = b.getAttribute('data-mv').split(',');
+      Z.x += (+p[0]) * step; Z.y += (+p[1]) * step; apply();
+    });
+  });
+  document.querySelectorAll('[data-sz]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var p = b.getAttribute('data-sz').split(',');
+      Z.w = Math.max(20, Z.w + (+p[0]) * step); Z.h = Math.max(20, Z.h + (+p[1]) * step); apply();
+    });
+  });
+  var drag = null;
+  zone.addEventListener('pointerdown', function (e) {
+    drag = { sx: e.clientX, sy: e.clientY, x: Z.x, y: Z.y };
+    zone.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  zone.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    Z.x = drag.x + (e.clientX - drag.sx); Z.y = drag.y + (e.clientY - drag.sy); apply();
+  });
+  zone.addEventListener('pointerup', function () { drag = null; });
+  document.getElementById('goBtn').addEventListener('click', function () {
+    var u = document.getElementById('urlIn').value.trim();
+    if (u) frame.src = u;
+  });
+  document.getElementById('hideBtn').addEventListener('click', function () {
+    panel.style.display = 'none'; openBtn.style.display = 'block';
+  });
+  openBtn.addEventListener('click', function () {
+    panel.style.display = 'block'; openBtn.style.display = 'none';
+  });
+  setMode('nav'); apply();
+})();
+</script>
+</body>
+</html>

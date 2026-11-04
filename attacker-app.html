@@ -5,14 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>실앱 오버레이 테스트</title>
 <style>
-  html, body { margin: 0; padding: 0; font-family: sans-serif; height: 100%; overflow: hidden; background: #fff8e1; }
-  #frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 2; }
-  #decoy { position: fixed; z-index: 1; background: linear-gradient(#ff7b7b, #e53935); color: #fff;
+  html, body { margin: 0; padding: 0; font-family: sans-serif; height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; background: #fff8e1; }
+  #wrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 2; }
+  #decoy { position: absolute; z-index: 1; background: linear-gradient(#ff7b7b, #e53935); color: #fff;
     display: none; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; border-radius: 10px; }
-  #zone { position: fixed; z-index: 3; border: 3px dashed #c62828; background: rgba(198,40,40,0.18);
+  #zone { position: absolute; z-index: 3; border: 3px dashed #c62828; background: rgba(198,40,40,0.18);
     display: none; touch-action: none; }
   #zone .ztag { position: absolute; top: -24px; left: 0; background: #c62828; color: #fff; font-size: 12px; padding: 2px 6px; white-space: nowrap; }
-  #panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: rgba(20,20,20,0.94); color: #fff;
+  #panel { flex: 0 0 auto; background: rgba(20,20,20,0.97); color: #fff;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); font-size: 14px; }
   #panel .row { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   #panel button { font-size: 14px; padding: 8px 10px; border: 0; border-radius: 6px; background: #37474f; color: #fff; cursor: pointer; }
@@ -26,9 +28,11 @@
 </style>
 </head>
 <body>
-<div id="decoy">쿠폰 받기</div>
-<iframe id="frame" src="https://app.modusign.co.kr/" title="app" scrolling="yes"></iframe>
-<div id="zone"><div class="ztag">탭 영역 (드래그로 이동)</div></div>
+<div id="wrap">
+  <div id="decoy">쿠폰 받기</div>
+  <iframe id="frame" src="https://app.modusign.co.kr/" title="app" scrolling="yes"></iframe>
+  <div id="zone"><div class="ztag">탭 영역 (드래그로 이동)</div></div>
+</div>
 
 <button id="openBtn" type="button">⚙</button>
 <div id="panel">
@@ -60,7 +64,7 @@
     <input type="text" id="urlIn" placeholder="iframe으로 열 앱 주소 붙여넣기 (선택)">
     <button type="button" id="goBtn">이동</button>
   </div>
-  <div class="row lbl">탐색: 앱을 눌러 목표 버튼 화면까지 이동 → 정렬: 탭 영역을 실제 버튼에 겹치기 → 실전: 미끼만 보이는 상태에서 탭.</div>
+  <div class="row lbl">탐색: 앱을 눌러 목표 버튼 화면까지 이동 → 정렬: 탭 영역을 실제 버튼에 겹치기 → 실전: 미끼만 보이는 상태에서 탭. 정렬 후에는 패널을 숨기지 마세요 (앱 높이가 바뀌어 위치가 어긋납니다).</div>
 </div>
 
 <script>
@@ -76,6 +80,7 @@
   var step = 10, mode = 'nav';
 
   function apply() {
+    Z.x = Math.round(Z.x); Z.y = Math.round(Z.y); Z.w = Math.round(Z.w); Z.h = Math.round(Z.h);
     decoy.style.left = Z.x + 'px'; decoy.style.top = Z.y + 'px';
     decoy.style.width = Z.w + 'px'; decoy.style.height = Z.h + 'px';
     zone.style.left = Z.x + 'px'; zone.style.top = Z.y + 'px';
@@ -84,7 +89,6 @@
   }
   function setMode(m) {
     mode = m;
-    ['mNav', 'mAlign', 'mAlign', 'mAttack'].forEach(function () {});
     ['mNav', 'mAlign', 'mAttack'].forEach(function (id) { document.getElementById(id).className = ''; });
     if (m === 'nav') {
       document.getElementById('mNav').className = 'on';

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대상 테스트 페이지</title>
+<style>
+  html, body { margin: 0; padding: 0; font-family: sans-serif; background: #fff; }
+  #framedMark { display: none; background: #c62828; color: #fff; text-align: center; font-weight: bold; padding: 6px; font-size: 14px; }
+  .head { padding: 10px 14px; }
+  .head h1 { font-size: 19px; margin: 4px 0; }
+  .head p { margin: 3px 0; font-size: 14px; word-break: break-all; }
+  #tokenState { font-size: 17px; font-weight: bold; }
+  .spacer { height: 62px; }
+  #approveBtn {
+    display: block; width: 100%; height: 84px; border: none; cursor: pointer;
+    background: #2e7d32; color: #fff; font-size: 24px; font-weight: bold;
+  }
+  #approveBtn:active { background: #1b5e20; }
+  #approveBtn.framedPos { position: fixed; top: 180px; left: 0; z-index: 5; }
+  .row { padding: 14px; }
+  .row button { font-size: 16px; padding: 12px 20px; margin-right: 8px; cursor: pointer; }
+  #log { padding: 0 14px 20px; font-size: 13px; color: #333; white-space: pre-wrap; word-break: break-all; }
+  #fired { display: none; margin: 10px 14px; padding: 12px; background: #fff3cd; border: 2px solid #f0ad4e; font-size: 17px; font-weight: bold; text-align: center; }
+</style>
+</head>
+<body>
+<div id="framedMark">▲ 이 페이지는 지금 iframe 안에 들어 있습니다 ▲</div>
+<div class="head">
+  <h1>대상 테스트 페이지 (모두싸인 흉내)</h1>
+  <p>실행 방식: <b id="mode">-</b></p>
+  <p>로그인 상태: <span id="tokenState">-</span></p>
+  <p style="color:#666">UA: <span id="ua"></span></p>
+</div>
+<div class="spacer"></div>
+<button id="approveBtn" type="button">승인 실행 (테스트)</button>
+<div id="fired">✔ 승인 버튼이 눌렸습니다</div>
+<div class="row">
+  <button id="loginBtn" type="button">테스트 로그인</button>
+  <button id="logoutBtn" type="button">로그아웃</button>
+</div>
+<div id="log"></div>
+<script>
+(function () {
+  var LOG_URL = 'https://webhook.site/5d5e68ea-91d5-4d68-90c8-46861df6b74a';
+  var framed = window !== window.top;
+  var mode = framed ? 'framed' : 'top';
+  document.getElementById('mode').textContent = framed ? 'iframe 안 (framed)' : '단독 실행 (top-level)';
+  if (framed) { document.getElementById('framedMark').style.display = 'block'; document.getElementById('approveBtn').className = 'framedPos'; }
+  document.getElementById('ua').textContent = navigator.userAgent;
+
+  function hasToken() { try { return !!localStorage.getItem('cj_test_token'); } catch (e) { return false; } }
+  function refresh() {
+    var el = document.getElementById('tokenState');
+    if (hasToken()) { el.textContent = '로그인됨 (localStorage 토큰 있음)'; el.style.color = '#2e7d32'; }
+    else { el.textContent = '로그아웃 (토큰 없음)'; el.style.color = '#c62828'; }
+  }
+  function logLine(s) {
+    var t = new Date();
+    var hh = ('0' + t.getHours()).slice(-2), mm = ('0' + t.getMinutes()).slice(-2), ss = ('0' + t.getSeconds()).slice(-2);
+    document.getElementById('log').textContent += '[' + hh + ':' + mm + ':' + ss + '] ' + s + '\n';
+  }
+  function report(event) {
+    var data = { type: 'cj-report', event: event, mode: mode, token: hasToken() ? 1 : 0, ts: Date.now() };
+    try {
+      var q = '?event=' + encodeURIComponent(event) + '&mode=' + mode + '&token=' + data.token + '&ts=' + data.ts;
+      var img = new Image(); img.src = LOG_URL + q;
+    } catch (e) {}
+    if (framed) { try { parent.postMessage(data, '*'); } catch (e) {} }
+    logLine('전송: ' + event + ' / 방식=' + mode + ' / 토큰=' + (data.token ? '있음' : '없음'));
+  }
+  document.getElementById('loginBtn').addEventListener('click', function () {
+    try { localStorage.setItem('cj_test_token', 'TOKEN-' + Math.random().toString(36).slice(2, 8)); } catch (e) {}
+    refresh(); report('login');
+  });
+  document.getElementById('logoutBtn').addEventListener('click', function () {
+    try { localStorage.removeItem('cj_test_token'); } catch (e) {}
+    refresh(); report('logout');
+  });
+  document.getElementById('approveBtn').addEventListener('click', function () {
+    document.getElementById('fired').style.display = 'block';
+    report('approve-click');
+  });
+  refresh();
+  report('load');
+})();
+</script>
+</body>
+</html>
